@@ -1,10 +1,6 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<cherrytree>
-  <bookmarks list=""/>
-  <node name="Scannning and Enumeration" unique_id="1" prog_lang="custom-colors" tags="" readonly="0" nosearch_me="0" nosearch_ch="0" custom_icon_id="35" is_bold="0" foreground="#ff0000" ts_creation="1647026640" ts_lastsave="1647028348">
-    <rich_text># This is a write up on Try Hack Me's HackPark
-# In this room we will be Hacking Windows with Hydra, RCE &amp; WinPEAS
-# Video Assistance: Optional
+"Scannning and Enumeration"
+# This is a write up on Try Hack Me's HackPark
+# In this room we will be Hacking Windows with Hydra, RCE, WinPEAS
 =================================================================
 KEY Terms
 #				        GBAR == google search bar
